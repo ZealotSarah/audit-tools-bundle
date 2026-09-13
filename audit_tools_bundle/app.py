@@ -7,22 +7,34 @@ from . import BUNDLE_VERSION
 from .registry import COMPONENTS, ComponentSpec
 
 
-class AuditToolsApp(tk.Tk):
+class FlightInspectionToolsApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title(f"审计工具整合包 V{BUNDLE_VERSION}")
-        self.geometry("1120x860")
-        self.minsize(900, 680)
+        self.title(f"飞检工具包 V{BUNDLE_VERSION}")
+        self._configure_window()
         self._loaded: dict[str, ttk.Frame] = {}
         self._placeholders: dict[str, ttk.Frame] = {}
         self._spec_by_id = {item.component_id: item for item in COMPONENTS}
         self._build()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
+    def _configure_window(self) -> None:
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        width = min(1200, max(900, int(screen_width * 0.82)))
+        height = min(920, max(680, int(screen_height * 0.82)))
+        width = min(width, screen_width)
+        height = min(height, screen_height)
+        x = max(0, (screen_width - width) // 2)
+        y = max(0, (screen_height - height) // 2)
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.minsize(min(760, width), min(560, height))
+        self.resizable(True, True)
+
     def _build(self) -> None:
         header = ttk.Frame(self, padding=(16, 12, 16, 8))
         header.pack(fill="x")
-        ttk.Label(header, text="审计工具整合包", font=("Microsoft YaHei UI", 19, "bold")).pack(side="left")
+        ttk.Label(header, text="飞检工具包", font=("Microsoft YaHei UI", 19, "bold")).pack(side="left")
         ttk.Label(header, text=f"V{BUNDLE_VERSION}  单窗口标签页  独立业务进程", foreground="#555555").pack(side="right")
 
         self.notebook = ttk.Notebook(self)
@@ -73,4 +85,4 @@ class AuditToolsApp(tk.Tk):
 
 
 def main() -> None:
-    AuditToolsApp().mainloop()
+    FlightInspectionToolsApp().mainloop()

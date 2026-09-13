@@ -29,7 +29,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='审计工具箱',
+    name='飞检工具包',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -45,5 +45,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='审计工具箱',
+    name='飞检工具包',
 )

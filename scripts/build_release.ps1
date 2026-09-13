@@ -12,9 +12,8 @@ try {
     & $PythonPath -m PyInstaller --noconfirm --clean "packaging\audit_tools_bundle.spec"
     if ($LASTEXITCODE -ne 0) { throw "构建失败" }
 
-    Write-Host "构建完成：dist\审计工具箱\审计工具箱.exe"
+    Write-Host "构建完成：dist\飞检工具包\飞检工具包.exe"
 }
 finally {
     Pop-Location
 }
-

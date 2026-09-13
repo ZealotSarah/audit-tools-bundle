@@ -152,13 +152,13 @@ class IntegratedFileRenameApp(FileRenameApp):
 
 
 class FileRenamerTab(ttk.Frame):
-    display_name = "文件批量编号"
+    display_name = "文件批量编码"
 
     def __init__(self, parent) -> None:
         super().__init__(parent)
         header = ttk.Frame(self, padding=(16, 12, 16, 4))
         header.pack(fill="x")
-        ttk.Label(header, text=f"文件批量添加序号工具 {APP_VERSION}", font=("Microsoft YaHei UI", 17, "bold")).pack(anchor="w")
+        ttk.Label(header, text=f"文件批量编码工具 V{APP_VERSION}", font=("Microsoft YaHei UI", 17, "bold")).pack(anchor="w")
         ttk.Label(header, text="原地修改文件名；执行前必须检查预览。实际改名在独立进程中进行。", foreground="#9C2F2F").pack(anchor="w", pady=(4, 0))
         self.host = EmbeddedHost(self)
         self.host.pack(fill="both", expand=True)
