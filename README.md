@@ -16,7 +16,7 @@ python run.py
 python -m pytest -q
 ```
 
-执行 `scripts\build_release.ps1` 可运行测试并构建 `onedir` 发布目录。
+执行 `scripts\build_release.ps1` 可运行测试并构建 `onedir` 发布目录。安装 Inno Setup 6 后，执行 `scripts\build_installer.ps1` 可进一步生成 Windows 安装程序；`scripts\smoke_installer.ps1` 用于验证静默安装、程序启动、Worker 和卸载。
 
 ## Git 远端
 
