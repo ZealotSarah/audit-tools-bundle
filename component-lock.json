@@ -1,0 +1,21 @@
+{
+  "medical_record": {
+    "repository": "git@github.com:ZealotSarah/Auto-Extract-Medical-Record.git",
+    "branch": "main",
+    "commit": "c10f9162d22e7bf5cde5b4f27bcb0cbb678b93e9",
+    "version": "1.8"
+  },
+  "fund_calculator": {
+    "repository": "git@github.com:ZealotSarah/auto-amount-calc.git",
+    "branch": "main",
+    "commit": "8ebd3243e91cd4a7b2fb7e5920551ce84a924d81",
+    "version": "0.8.1"
+  },
+  "file_renamer": {
+    "repository": "git@github.com:ZealotSarah/Auto_add_Number.git",
+    "branch": "develop_1",
+    "commit": "1f0324ad1a8e9082fcb1c9ca959d608d7115c6c8",
+    "version": "1f0324a"
+  }
+}
+

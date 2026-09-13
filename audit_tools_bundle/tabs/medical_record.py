@@ -1,0 +1,178 @@
+from __future__ import annotations
+
+import json
+import os
+import random
+import tkinter as tk
+from datetime import date
+from pathlib import Path
+from tkinter import filedialog, messagebox, ttk
+
+from components.medical_record.extractor import APP_VERSION
+
+from ..task_runner import ProcessTaskRunner
+from ..workers.medical_record import run_medical_extraction
+
+
+SETTINGS_PATH = Path(os.getenv("APPDATA", Path.home())) / "病历自动抽取工具" / "settings.json"
+
+
+def load_settings() -> dict:
+    try:
+        data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        if date.fromisoformat(data["start_date"]) > date.fromisoformat(data["end_date"]):
+            raise ValueError
+        return data
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return {}
+
+
+def save_settings(start: date, end: date, input_dir: str, output_dir: str) -> None:
+    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS_PATH.write_text(json.dumps({
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "input_dir": input_dir,
+        "output_dir": output_dir,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+class MedicalRecordTab(ttk.Frame):
+    display_name = "病历自动抽取"
+
+    def __init__(self, parent) -> None:
+        super().__init__(parent, padding=16)
+        self.files: list[str] = []
+        self.runner = ProcessTaskRunner(self)
+        today = date.today()
+        settings = load_settings()
+        self.input_dir = settings.get("input_dir") or str(Path.cwd())
+        self.start_var = tk.StringVar(value=settings.get("start_date", f"{today.year}-01-01"))
+        self.end_var = tk.StringVar(value=settings.get("end_date", today.isoformat()))
+        self.count_var = tk.IntVar(value=5)
+        self.seed_var = tk.StringVar(value=str(random.SystemRandom().randint(100000, 999999999)))
+        self.output_var = tk.StringVar(value=settings.get("output_dir") or str(Path.cwd() / "输出结果"))
+        self.status_var = tk.StringVar(value="请选择 Excel 文件。")
+        self._last_result = None
+        self._build()
+
+    @property
+    def running(self) -> bool:
+        return self.runner.running
+
+    def _build(self) -> None:
+        ttk.Label(self, text=f"病历自动抽取工具 V{APP_VERSION}", font=("Microsoft YaHei UI", 17, "bold")).pack(anchor="w")
+        ttk.Label(self, text="只读源 Excel；结果写入新文件；编号与证件字段不输出。", foreground="#555555").pack(anchor="w", pady=(4, 12))
+        buttons = ttk.Frame(self)
+        buttons.pack(fill="x")
+        ttk.Button(buttons, text="添加 Excel", command=self.add_files).pack(side="left")
+        ttk.Button(buttons, text="添加文件夹", command=self.add_folder).pack(side="left", padx=(8, 0))
+        ttk.Button(buttons, text="移除选中", command=self.remove_selected).pack(side="left", padx=8)
+        ttk.Button(buttons, text="清空", command=self.clear_files).pack(side="left")
+        self.listbox = tk.Listbox(self, height=9, selectmode="extended")
+        self.listbox.pack(fill="both", expand=True, pady=8)
+
+        options = ttk.LabelFrame(self, text="抽取参数", padding=10)
+        options.pack(fill="x", pady=8)
+        labels = (("检查开始日", self.start_var), ("检查结束日", self.end_var), ("每文件条数", self.count_var), ("随机种子", self.seed_var))
+        for index, (label, variable) in enumerate(labels):
+            ttk.Label(options, text=label).grid(row=index // 2, column=(index % 2) * 2, sticky="e", padx=5, pady=5)
+            ttk.Entry(options, textvariable=variable, width=22).grid(row=index // 2, column=(index % 2) * 2 + 1, sticky="ew", padx=5, pady=5)
+        options.columnconfigure(1, weight=1)
+        options.columnconfigure(3, weight=1)
+
+        out = ttk.Frame(self)
+        out.pack(fill="x", pady=6)
+        ttk.Label(out, text="输出目录").pack(side="left")
+        ttk.Entry(out, textvariable=self.output_var).pack(side="left", fill="x", expand=True, padx=8)
+        ttk.Button(out, text="选择", command=self.choose_output).pack(side="left")
+        self.run_button = ttk.Button(self, text="开始抽取", command=self.start_run)
+        self.run_button.pack(anchor="e", pady=8)
+        ttk.Label(self, textvariable=self.status_var, foreground="#1F4E78").pack(anchor="w")
+
+    def add_files(self) -> None:
+        chosen = filedialog.askopenfilenames(parent=self, initialdir=self.input_dir, filetypes=[("Excel 文件", "*.xlsx")])
+        if chosen:
+            self.input_dir = str(Path(chosen[0]).resolve().parent)
+        self._add_paths(chosen)
+
+    def add_folder(self) -> None:
+        chosen = filedialog.askdirectory(parent=self, initialdir=self.input_dir)
+        if chosen:
+            self.input_dir = str(Path(chosen).resolve())
+            self._add_paths(sorted(Path(chosen).iterdir()))
+
+    def _add_paths(self, paths) -> None:
+        existing = {str(Path(item).resolve()).casefold() for item in self.files}
+        for value in paths:
+            path = Path(value).resolve()
+            key = str(path).casefold()
+            if path.suffix.casefold() == ".xlsx" and key not in existing:
+                self.files.append(str(path))
+                self.listbox.insert("end", str(path))
+                existing.add(key)
+
+    def remove_selected(self) -> None:
+        for index in reversed(self.listbox.curselection()):
+            self.listbox.delete(index)
+            del self.files[index]
+
+    def clear_files(self) -> None:
+        self.files.clear()
+        self.listbox.delete(0, "end")
+
+    def choose_output(self) -> None:
+        chosen = filedialog.askdirectory(parent=self, initialdir=self.output_var.get().strip() or str(Path.cwd()))
+        if chosen:
+            self.output_var.set(chosen)
+
+    def start_run(self) -> None:
+        try:
+            if not self.files:
+                raise ValueError("请至少选择一个 Excel 文件")
+            start = date.fromisoformat(self.start_var.get().strip())
+            end = date.fromisoformat(self.end_var.get().strip())
+            count = int(self.count_var.get())
+            seed = int(self.seed_var.get().strip())
+            output_dir = self.output_var.get().strip()
+            if start > end:
+                raise ValueError("检查开始日期不能晚于结束日期")
+            if count < 1:
+                raise ValueError("每文件抽取条数必须大于 0")
+            if not output_dir:
+                raise ValueError("请选择输出目录")
+            save_settings(start, end, self.input_dir, output_dir)
+        except Exception as exc:
+            messagebox.showerror("参数错误", str(exc), parent=self)
+            return
+        self.run_button.configure(state="disabled")
+        self.status_var.set("正在独立进程中抽取，请稍候……")
+        self._last_result = None
+        self.runner.start(run_medical_extraction, {
+            "files": list(self.files), "start": start.isoformat(), "end": end.isoformat(),
+            "count": count, "seed": seed, "output_dir": output_dir,
+        }, self._on_message, self._on_complete)
+
+    def _on_message(self, message: dict) -> None:
+        if message["type"] == "progress":
+            self.status_var.set(message["message"])
+        elif message["type"] == "result":
+            self._last_result = message
+        elif message["type"] == "error":
+            self._last_result = message
+
+    def _on_complete(self, exit_code: int) -> None:
+        self.run_button.configure(state="normal")
+        result = self._last_result or {"type": "error", "message": f"工作进程异常退出，退出码 {exit_code}"}
+        if result["type"] == "error":
+            self.status_var.set("抽取失败。")
+            messagebox.showerror("抽取失败", result["message"], parent=self)
+            return
+        errors = result.get("errors", [])
+        output = result["output"]
+        self.status_var.set(f"完成：{output}" if not errors else f"完成，但有 {len(errors)} 个文件失败：{output}")
+        title = "抽取完成" if not errors else "抽取完成（有异常）"
+        detail = f"结果已保存到：\n{output}"
+        if errors:
+            detail += f"\n\n有 {len(errors)} 个文件失败，请查看异常明细。"
+        messagebox.showinfo(title, detail, parent=self)

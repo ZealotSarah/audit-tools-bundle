@@ -1,0 +1,5 @@
+openpyxl==3.1.5
+python-docx==1.2.0
+PyPDF2==3.0.1
+pywin32==311; sys_platform == "win32"
+
