@@ -22,6 +22,15 @@ def main() -> None:
         app.notebook.select(index)
         app._load_selected()
         app.update()
+    medical = app._loaded["medical_record"]
+    medical.mode_var.set("按科室基金支付总金额前十")
+    medical._mode_changed()
+    if str(medical.count_entry.cget("state")) != "disabled" or str(medical.seed_entry.cget("state")) != "disabled":
+        raise RuntimeError("科室前十模式未禁用随机参数")
+    medical.mode_var.set("按年份随机抽取")
+    medical._mode_changed()
+    if str(medical.count_entry.cget("state")) != "normal" or str(medical.seed_entry.cget("state")) != "normal":
+        raise RuntimeError("随机模式未启用随机参数")
     loaded = sorted(app._loaded)
     app.destroy()
     expected = ["file_renamer", "fund_calculator", "medical_record"]

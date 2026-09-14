@@ -8,7 +8,7 @@ from datetime import date
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from components.medical_record.extractor import APP_VERSION
+from components.medical_record.extractor import APP_VERSION, EXTRACTION_MODES, MODE_DEPARTMENT_TOP10, MODE_RANDOM
 
 from ..task_runner import ProcessTaskRunner
 from ..workers.medical_record import run_medical_extraction
@@ -17,23 +17,28 @@ from ..workers.medical_record import run_medical_extraction
 SETTINGS_PATH = Path(os.getenv("APPDATA", Path.home())) / "病历自动抽取工具" / "settings.json"
 
 
-def load_settings() -> dict:
+def load_settings(path: Path = SETTINGS_PATH) -> dict:
     try:
-        data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
         if date.fromisoformat(data["start_date"]) > date.fromisoformat(data["end_date"]):
             raise ValueError
+        extraction_mode = data.get("extraction_mode", MODE_RANDOM)
+        if extraction_mode not in EXTRACTION_MODES:
+            raise ValueError
+        data["extraction_mode"] = extraction_mode
         return data
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
         return {}
 
 
-def save_settings(start: date, end: date, input_dir: str, output_dir: str) -> None:
-    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SETTINGS_PATH.write_text(json.dumps({
+def save_settings(start: date, end: date, input_dir: str, output_dir: str, extraction_mode: str = MODE_RANDOM, path: Path = SETTINGS_PATH) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
         "input_dir": input_dir,
         "output_dir": output_dir,
+        "extraction_mode": extraction_mode,
     }, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -51,6 +56,7 @@ class MedicalRecordTab(ttk.Frame):
         self.end_var = tk.StringVar(value=settings.get("end_date", today.isoformat()))
         self.count_var = tk.IntVar(value=5)
         self.seed_var = tk.StringVar(value=str(random.SystemRandom().randint(100000, 999999999)))
+        self.mode_var = tk.StringVar(value=settings.get("extraction_mode", MODE_RANDOM))
         self.output_var = tk.StringVar(value=settings.get("output_dir") or str(Path.cwd() / "输出结果"))
         self.status_var = tk.StringVar(value="请选择 Excel 文件。")
         self._last_result = None
@@ -74,10 +80,19 @@ class MedicalRecordTab(ttk.Frame):
 
         options = ttk.LabelFrame(self, text="抽取参数", padding=10)
         options.pack(fill="x", pady=8)
+        ttk.Label(options, text="抽取方式").grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        mode_box = ttk.Combobox(options, textvariable=self.mode_var, values=EXTRACTION_MODES, state="readonly")
+        mode_box.grid(row=0, column=1, columnspan=3, sticky="ew", padx=5, pady=5)
+        mode_box.bind("<<ComboboxSelected>>", self._mode_changed)
         labels = (("检查开始日", self.start_var), ("检查结束日", self.end_var), ("每文件条数", self.count_var), ("随机种子", self.seed_var))
         for index, (label, variable) in enumerate(labels):
-            ttk.Label(options, text=label).grid(row=index // 2, column=(index % 2) * 2, sticky="e", padx=5, pady=5)
-            ttk.Entry(options, textvariable=variable, width=22).grid(row=index // 2, column=(index % 2) * 2 + 1, sticky="ew", padx=5, pady=5)
+            ttk.Label(options, text=label).grid(row=index // 2 + 1, column=(index % 2) * 2, sticky="e", padx=5, pady=5)
+            entry = ttk.Entry(options, textvariable=variable, width=22)
+            entry.grid(row=index // 2 + 1, column=(index % 2) * 2 + 1, sticky="ew", padx=5, pady=5)
+            if variable is self.count_var:
+                self.count_entry = entry
+            elif variable is self.seed_var:
+                self.seed_entry = entry
         options.columnconfigure(1, weight=1)
         options.columnconfigure(3, weight=1)
 
@@ -89,6 +104,12 @@ class MedicalRecordTab(ttk.Frame):
         self.run_button = ttk.Button(self, text="开始抽取", command=self.start_run)
         self.run_button.pack(anchor="e", pady=8)
         ttk.Label(self, textvariable=self.status_var, foreground="#1F4E78").pack(anchor="w")
+        self._mode_changed()
+
+    def _mode_changed(self, _event=None) -> None:
+        state = "disabled" if self.mode_var.get() == MODE_DEPARTMENT_TOP10 else "normal"
+        self.count_entry.configure(state=state)
+        self.seed_entry.configure(state=state)
 
     def add_files(self) -> None:
         chosen = filedialog.askopenfilenames(parent=self, initialdir=self.input_dir, filetypes=[("Excel 文件", "*.xlsx")])
@@ -132,16 +153,19 @@ class MedicalRecordTab(ttk.Frame):
                 raise ValueError("请至少选择一个 Excel 文件")
             start = date.fromisoformat(self.start_var.get().strip())
             end = date.fromisoformat(self.end_var.get().strip())
-            count = int(self.count_var.get())
-            seed = int(self.seed_var.get().strip())
+            extraction_mode = self.mode_var.get()
+            if extraction_mode not in EXTRACTION_MODES:
+                raise ValueError("请选择有效的抽取方式")
+            count = int(self.count_var.get()) if extraction_mode == MODE_RANDOM else 0
+            seed = int(self.seed_var.get().strip()) if extraction_mode == MODE_RANDOM else 0
             output_dir = self.output_var.get().strip()
             if start > end:
                 raise ValueError("检查开始日期不能晚于结束日期")
-            if count < 1:
+            if extraction_mode == MODE_RANDOM and count < 1:
                 raise ValueError("每文件抽取条数必须大于 0")
             if not output_dir:
                 raise ValueError("请选择输出目录")
-            save_settings(start, end, self.input_dir, output_dir)
+            save_settings(start, end, self.input_dir, output_dir, extraction_mode)
         except Exception as exc:
             messagebox.showerror("参数错误", str(exc), parent=self)
             return
@@ -150,7 +174,7 @@ class MedicalRecordTab(ttk.Frame):
         self._last_result = None
         self.runner.start(run_medical_extraction, {
             "files": list(self.files), "start": start.isoformat(), "end": end.isoformat(),
-            "count": count, "seed": seed, "output_dir": output_dir,
+            "count": count, "seed": seed, "output_dir": output_dir, "extraction_mode": extraction_mode,
         }, self._on_message, self._on_complete)
 
     def _on_message(self, message: dict) -> None:

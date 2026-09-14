@@ -1,6 +1,6 @@
 from datetime import date
 
-from components.medical_record.extractor import extract_files
+from components.medical_record.extractor import MODE_RANDOM, extract_files
 
 
 def run_medical_extraction(messages, cancel_event, payload: dict) -> None:
@@ -16,6 +16,6 @@ def run_medical_extraction(messages, cancel_event, payload: dict) -> None:
         int(payload["seed"]),
         payload["output_dir"],
         return_errors=True,
+        extraction_mode=payload.get("extraction_mode", MODE_RANDOM),
     )
     messages.put({"type": "result", "output": str(output), "errors": errors})
-
