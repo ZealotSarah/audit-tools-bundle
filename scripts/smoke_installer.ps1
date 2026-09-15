@@ -1,11 +1,12 @@
 param(
-    [string]$InstallerPath = ""
+    [string]$InstallerPath = "",
+    [string]$Version = "0.2.0"
 )
 
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
 if (-not $InstallerPath) {
-    $installerFiles = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot "dist\installer") -Filter "*.exe" -File)
+    $installerFiles = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot "dist\installer") -Filter "*-$Version.exe" -File)
     if ($installerFiles.Count -ne 1) {
         throw "Expected exactly one installer executable, found $($installerFiles.Count)"
     }
