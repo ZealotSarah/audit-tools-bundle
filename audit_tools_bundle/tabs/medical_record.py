@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, ttk
 from components.medical_record.extractor import APP_VERSION, EXTRACTION_MODES, MODE_DEPARTMENT_TOP10, MODE_RANDOM
 
 from ..task_runner import ProcessTaskRunner
+from ..ui import ScrollablePage
 from ..workers.medical_record import run_medical_extraction
 
 
@@ -46,7 +47,10 @@ class MedicalRecordTab(ttk.Frame):
     display_name = "病历自动抽取"
 
     def __init__(self, parent) -> None:
-        super().__init__(parent, padding=16)
+        super().__init__(parent)
+        self.scroller = ScrollablePage(self)
+        self.scroller.pack(fill="both", expand=True)
+        self.content = self.scroller.body
         self.files: list[str] = []
         self.runner = ProcessTaskRunner(self)
         today = date.today()
@@ -67,19 +71,21 @@ class MedicalRecordTab(ttk.Frame):
         return self.runner.running
 
     def _build(self) -> None:
-        ttk.Label(self, text=f"病历自动抽取工具 V{APP_VERSION}", font=("Microsoft YaHei UI", 17, "bold")).pack(anchor="w")
-        ttk.Label(self, text="只读源 Excel；结果写入新文件；编号与证件字段不输出。", foreground="#555555").pack(anchor="w", pady=(4, 12))
-        buttons = ttk.Frame(self)
+        content = self.content
+        content.configure(padding=12)
+        ttk.Label(content, text=f"病历自动抽取工具 V{APP_VERSION}", font=("Microsoft YaHei UI", 16, "bold")).pack(anchor="w")
+        ttk.Label(content, text="只读源 Excel；结果写入新文件；编号与证件字段不输出。", foreground="#555555").pack(anchor="w", pady=(2, 8))
+        buttons = ttk.Frame(content)
         buttons.pack(fill="x")
         ttk.Button(buttons, text="添加 Excel", command=self.add_files).pack(side="left")
         ttk.Button(buttons, text="添加文件夹", command=self.add_folder).pack(side="left", padx=(8, 0))
         ttk.Button(buttons, text="移除选中", command=self.remove_selected).pack(side="left", padx=8)
         ttk.Button(buttons, text="清空", command=self.clear_files).pack(side="left")
-        self.listbox = tk.Listbox(self, height=9, selectmode="extended")
-        self.listbox.pack(fill="both", expand=True, pady=8)
+        self.listbox = tk.Listbox(content, height=6, selectmode="extended")
+        self.listbox.pack(fill="both", expand=True, pady=6)
 
-        options = ttk.LabelFrame(self, text="抽取参数", padding=10)
-        options.pack(fill="x", pady=8)
+        options = ttk.LabelFrame(content, text="抽取参数", padding=8)
+        options.pack(fill="x", pady=6)
         ttk.Label(options, text="抽取方式").grid(row=0, column=0, sticky="e", padx=5, pady=5)
         mode_box = ttk.Combobox(options, textvariable=self.mode_var, values=EXTRACTION_MODES, state="readonly")
         mode_box.grid(row=0, column=1, columnspan=3, sticky="ew", padx=5, pady=5)
@@ -96,14 +102,14 @@ class MedicalRecordTab(ttk.Frame):
         options.columnconfigure(1, weight=1)
         options.columnconfigure(3, weight=1)
 
-        out = ttk.Frame(self)
-        out.pack(fill="x", pady=6)
+        out = ttk.Frame(content)
+        out.pack(fill="x", pady=4)
         ttk.Label(out, text="输出目录").pack(side="left")
         ttk.Entry(out, textvariable=self.output_var).pack(side="left", fill="x", expand=True, padx=8)
         ttk.Button(out, text="选择", command=self.choose_output).pack(side="left")
-        self.run_button = ttk.Button(self, text="开始抽取", command=self.start_run)
-        self.run_button.pack(anchor="e", pady=8)
-        ttk.Label(self, textvariable=self.status_var, foreground="#1F4E78").pack(anchor="w")
+        self.run_button = ttk.Button(content, text="开始抽取", command=self.start_run)
+        self.run_button.pack(anchor="e", pady=6)
+        ttk.Label(content, textvariable=self.status_var, foreground="#1F4E78").pack(anchor="w")
         self._mode_changed()
 
     def _mode_changed(self, _event=None) -> None:

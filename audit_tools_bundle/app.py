@@ -1,10 +1,33 @@
 from __future__ import annotations
 
+import ctypes
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 from . import BUNDLE_VERSION
 from .registry import COMPONENTS, ComponentSpec
+
+
+def get_work_area(root: tk.Tk) -> tuple[int, int, int, int]:
+    if root.tk.call("tk", "windowingsystem") == "win32":
+        class Rect(ctypes.Structure):
+            _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+        rect = Rect()
+        if ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(rect), 0):
+            return rect.left, rect.top, rect.right, rect.bottom
+    return 0, 0, root.winfo_screenwidth(), root.winfo_screenheight()
+
+
+def calculate_window_geometry(work_area: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+    left, top, right, bottom = work_area
+    available_width = max(1, right - left)
+    available_height = max(1, bottom - top)
+    width = min(1200, max(760, int(available_width * 0.90)), available_width)
+    height = min(900, max(560, int(available_height * 0.90)), available_height)
+    x = left + max(0, (available_width - width) // 2)
+    y = top + max(0, (available_height - height) // 2)
+    return width, height, x, y
 
 
 class FlightInspectionToolsApp(tk.Tk):
@@ -19,26 +42,19 @@ class FlightInspectionToolsApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _configure_window(self) -> None:
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        width = min(1200, max(900, int(screen_width * 0.82)))
-        height = min(920, max(680, int(screen_height * 0.82)))
-        width = min(width, screen_width)
-        height = min(height, screen_height)
-        x = max(0, (screen_width - width) // 2)
-        y = max(0, (screen_height - height) // 2)
+        width, height, x, y = calculate_window_geometry(get_work_area(self))
         self.geometry(f"{width}x{height}+{x}+{y}")
-        self.minsize(min(760, width), min(560, height))
+        self.minsize(min(720, width), min(500, height))
         self.resizable(True, True)
 
     def _build(self) -> None:
-        header = ttk.Frame(self, padding=(16, 12, 16, 8))
+        header = ttk.Frame(self, padding=(12, 8, 12, 6))
         header.pack(fill="x")
-        ttk.Label(header, text="飞检工具包", font=("Microsoft YaHei UI", 19, "bold")).pack(side="left")
+        ttk.Label(header, text="飞检工具包", font=("Microsoft YaHei UI", 17, "bold")).pack(side="left")
         ttk.Label(header, text=f"V{BUNDLE_VERSION}  单窗口标签页  独立业务进程", foreground="#555555").pack(side="right")
 
         self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill="both", expand=True, padx=12, pady=(0, 8))
+        self.notebook.pack(fill="both", expand=True, padx=8, pady=(0, 4))
         for spec in COMPONENTS:
             placeholder = ttk.Frame(self.notebook)
             placeholder.component_id = spec.component_id
@@ -46,7 +62,7 @@ class FlightInspectionToolsApp(tk.Tk):
             self.notebook.add(placeholder, text=spec.label)
             self._placeholders[str(placeholder)] = placeholder
         self.status_var = tk.StringVar(value="各工具业务代码相互独立；写文件任务在独立进程中执行。")
-        ttk.Label(self, textvariable=self.status_var, padding=(16, 4, 16, 10), foreground="#555555").pack(fill="x")
+        ttk.Label(self, textvariable=self.status_var, padding=(12, 3, 12, 6), foreground="#555555").pack(fill="x")
         self.notebook.bind("<<NotebookTabChanged>>", self._load_selected)
         self.after_idle(self._load_selected)
 

@@ -1,5 +1,5 @@
 #define MyAppName "飞检工具包"
-#define MyAppVersion "0.2.0"
+#define MyAppVersion "0.3.0"
 #define MyAppPublisher "ZealotSarah"
 #define MyAppExeName "飞检工具包.exe"
 

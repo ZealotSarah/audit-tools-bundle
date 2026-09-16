@@ -18,6 +18,7 @@ from components.fund_calculator.fund_calculator import (
 )
 
 from ..task_runner import ProcessTaskRunner
+from ..ui import ScrollablePage
 from ..workers.fund_calculator import run_fund_calculation
 
 
@@ -25,7 +26,10 @@ class FundCalculatorTab(ttk.Frame):
     display_name = "基金金额测算"
 
     def __init__(self, parent) -> None:
-        super().__init__(parent, padding=16)
+        super().__init__(parent)
+        self.scroller = ScrollablePage(self)
+        self.scroller.pack(fill="both", expand=True)
+        self.content = self.scroller.body
         self.files: list[Path] = []
         self.runner = ProcessTaskRunner(self)
         self.rule_type = tk.StringVar(value="通用")
@@ -44,9 +48,11 @@ class FundCalculatorTab(ttk.Frame):
         return self.runner.running
 
     def _build(self) -> None:
-        ttk.Label(self, text=f"基金金额自动测算工具 V{APP_VERSION}", font=("Microsoft YaHei UI", 17, "bold")).pack(anchor="w")
-        ttk.Label(self, text="会修改所选工作簿；成功前先校验临时文件，并保留测算前备份。", foreground="#9C2F2F").pack(anchor="w", pady=(4, 12))
-        file_bar = ttk.Frame(self)
+        content = self.content
+        content.configure(padding=12)
+        ttk.Label(content, text=f"基金金额自动测算工具 V{APP_VERSION}", font=("Microsoft YaHei UI", 16, "bold")).pack(anchor="w")
+        ttk.Label(content, text="会修改所选工作簿；成功前先校验临时文件，并保留测算前备份。", foreground="#9C2F2F").pack(anchor="w", pady=(2, 8))
+        file_bar = ttk.Frame(content)
         file_bar.pack(fill="x")
         self.pick_button = ttk.Button(file_bar, text="选择 Excel 文件", command=self.pick_files)
         self.pick_button.pack(side="left")
@@ -55,8 +61,8 @@ class FundCalculatorTab(ttk.Frame):
         self.file_label = ttk.Label(file_bar, text="尚未选择文件")
         self.file_label.pack(side="left", padx=8)
 
-        params = ttk.LabelFrame(self, text="参数", padding=12)
-        params.pack(fill="x", pady=12)
+        params = ttk.LabelFrame(content, text="参数", padding=8)
+        params.pack(fill="x", pady=8)
         self._add_combo(params, "规则大类", self.rule_type, ["通用", "串换", "固定比例"], 0, 0)
         self._add_combo(params, "业务类型", self.visit_type, ["自动识别", "住院", "门诊"], 0, 1)
         self._add_combo(params, "参保地（比例表匹配）", self.pooling_area, list(FUND_RATES), 1, 0)
@@ -71,13 +77,13 @@ class FundCalculatorTab(ttk.Frame):
         ttk.Checkbutton(params, text="覆盖已有“基金测算”Sheet（否则新建带时间的 Sheet）", variable=self.overwrite_result).grid(row=5, column=0, columnspan=2, sticky="w", pady=(10, 0))
         params.columnconfigure(1, weight=1)
 
-        controls = ttk.Frame(self)
+        controls = ttk.Frame(content)
         controls.pack(fill="x")
         self.run_button = ttk.Button(controls, text="开始测算", command=self.start)
         self.run_button.pack(side="left")
         ttk.Label(controls, text="  请先关闭已在 Excel 中打开的文件。", foreground="#A33").pack(side="left")
-        self.log = tk.Text(self, height=12, wrap="word", state="disabled", font=("Consolas", 10))
-        self.log.pack(fill="both", expand=True, pady=(12, 0))
+        self.log = tk.Text(content, height=8, wrap="word", state="disabled", font=("Consolas", 10))
+        self.log.pack(fill="both", expand=True, pady=(8, 0))
 
     def _add_combo(self, parent, label: str, variable: tk.StringVar, values: list[str], row: int, column: int) -> None:
         base = column * 2
