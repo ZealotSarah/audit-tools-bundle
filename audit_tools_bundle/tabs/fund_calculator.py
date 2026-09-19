@@ -11,6 +11,7 @@ from components.fund_calculator.fund_calculator import (
     AUTO_SOURCE_SHEET,
     FUND_RATES,
     OUTPUT_SHEET,
+    SIMULTANEOUS_SCOPES,
     CalculationError,
     RunOptions,
     optional_decimal,
@@ -39,6 +40,7 @@ class FundCalculatorTab(ttk.Frame):
         self.source_sheet = tk.StringVar(value=AUTO_SOURCE_SHEET)
         self.deduction_price = tk.StringVar()
         self.deduction_quantity = tk.StringVar()
+        self.simultaneous_scope = tk.StringVar(value=SIMULTANEOUS_SCOPES[0])
         self.overwrite_result = tk.BooleanVar(value=False)
         self._last_result = None
         self._build()
@@ -63,13 +65,14 @@ class FundCalculatorTab(ttk.Frame):
 
         params = ttk.LabelFrame(content, text="参数", padding=8)
         params.pack(fill="x", pady=8)
-        self._add_combo(params, "规则大类", self.rule_type, ["通用", "串换", "固定比例"], 0, 0)
+        self._add_combo(params, "规则大类", self.rule_type, ["通用", "串换", "固定比例", "两项同时收取"], 0, 0)
         self._add_combo(params, "业务类型", self.visit_type, ["自动识别", "住院", "门诊"], 0, 1)
         self._add_combo(params, "参保地（比例表匹配）", self.pooling_area, list(FUND_RATES), 1, 0)
         self._add_combo(params, "医疗机构级别", self.institution_level, ["三级", "二级", "一级"], 1, 1)
         ttk.Label(params, text="源数据 Sheet").grid(row=2, column=0, sticky="w", pady=(10, 0))
         self.source_sheet_combo = ttk.Combobox(params, textvariable=self.source_sheet, values=[AUTO_SOURCE_SHEET], width=26)
         self.source_sheet_combo.grid(row=2, column=1, sticky="ew", pady=(10, 0))
+        self._add_combo(params, "同时口径（仅两项同时收取）", self.simultaneous_scope, list(SIMULTANEOUS_SCOPES), 2, 1)
         ttk.Label(params, text="扣减单价（仅串换无违规金额列时）").grid(row=3, column=0, sticky="w", pady=(8, 0))
         ttk.Entry(params, textvariable=self.deduction_price, width=26).grid(row=3, column=1, sticky="ew", pady=(8, 0))
         ttk.Label(params, text="扣减数量（串换必填）").grid(row=4, column=0, sticky="w", pady=(8, 0))
@@ -124,6 +127,7 @@ class FundCalculatorTab(ttk.Frame):
                 optional_decimal(self.deduction_price.get(), "扣减单价"),
                 optional_decimal(self.deduction_quantity.get(), "扣减数量"), self.overwrite_result.get(),
                 None if self.source_sheet.get() in {"", AUTO_SOURCE_SHEET} else self.source_sheet.get(),
+                self.simultaneous_scope.get(),
             )
             validate_options(options)
         except CalculationError as exc:
@@ -142,6 +146,7 @@ class FundCalculatorTab(ttk.Frame):
                 "deduction_price": str(options.deduction_price) if options.deduction_price is not None else None,
                 "deduction_quantity": str(options.deduction_quantity) if options.deduction_quantity is not None else None,
                 "overwrite_result": options.overwrite_result, "source_sheet": options.source_sheet,
+                "simultaneous_scope": options.simultaneous_scope,
             },
         }, self._on_message, self._on_complete)
 

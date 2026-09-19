@@ -43,6 +43,11 @@ def main() -> None:
     renamer_scroller = app._loaded["file_renamer"].scroller
     if renamer_scroller.horizontal_scrollbar is None:
         raise RuntimeError("文件批量编码页未启用横向滚动")
+    fund = app._loaded["fund_calculator"]
+    fund.rule_type.set("两项同时收取")
+    fund.simultaneous_scope.set("同日")
+    if fund.simultaneous_scope.get() != "同日":
+        raise RuntimeError("基金两项同时收取口径未加载")
     medical = app._loaded["medical_record"]
     medical.mode_var.set("按科室基金支付总金额前十")
     medical._mode_changed()

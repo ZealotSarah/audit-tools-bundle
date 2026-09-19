@@ -8,8 +8,8 @@
   "fund_calculator": {
     "repository": "git@github.com:ZealotSarah/auto-amount-calc.git",
     "branch": "main",
-    "commit": "8ebd3243e91cd4a7b2fb7e5920551ce84a924d81",
-    "version": "0.8.1"
+    "commit": "7ad4a13e01a097d182fa59a3c3505ffdffede0c8",
+    "version": "1.0.0"
   },
   "file_renamer": {
     "repository": "git@github.com:ZealotSarah/Auto_add_Number.git",

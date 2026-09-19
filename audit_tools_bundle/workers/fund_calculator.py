@@ -15,6 +15,7 @@ def run_fund_calculation(messages, cancel_event, payload: dict) -> None:
         Decimal(options_data["deduction_quantity"]) if options_data["deduction_quantity"] is not None else None,
         bool(options_data["overwrite_result"]),
         options_data["source_sheet"],
+        options_data.get("simultaneous_scope", "同日同时同分"),
     )
     succeeded = 0
     failures: list[str] = []
@@ -40,4 +41,3 @@ def run_fund_calculation(messages, cancel_event, payload: dict) -> None:
             failures.append(failure)
             messages.put({"type": "file_error", "message": failure})
     messages.put({"type": "result", "succeeded": succeeded, "failures": failures})
-
